@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:3000"
+    volumes:
+      - frisbee-golf-data:/app/data
+    environment:
+      - DATABASE_URL=file:/app/data/frisbee-golf.db
+    restart: unless-stopped
+
+volumes:
+  frisbee-golf-data:

@@ -1,0 +1,48 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Course {
+  id       String @id @default(cuid())
+  name     String
+  location String
+  holes    Hole[]
+  games    Game[]
+}
+
+model Hole {
+  id       String @id @default(cuid())
+  number   Int
+  par      Int
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id])
+  scores   Score[]
+}
+
+model Game {
+  id       String   @id @default(cuid())
+  date     DateTime @default(now())
+  courseId String
+  course   Course   @relation(fields: [courseId], references: [id])
+  scores   Score[]
+}
+
+model Score {
+  id        String @id @default(cuid())
+  gameId    String
+  game      Game @relation(fields: [gameId], references: [id])
+  holeId    String
+  hole      Hole @relation(fields: [holeId], references: [id])
+  strokes   Int
+  putts     Int
+}

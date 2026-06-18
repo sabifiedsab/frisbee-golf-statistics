@@ -2,6 +2,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 RUN corepack enable
 
+ENV NEXT_TELEMETRY_DISABLED=1
+
 COPY package.json package-lock.json ./
 COPY prisma/ ./prisma/
 RUN npm ci
@@ -25,6 +27,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 USER nextjs
@@ -34,4 +37,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node server.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && node server.js"]

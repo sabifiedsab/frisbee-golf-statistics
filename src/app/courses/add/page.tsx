@@ -21,8 +21,8 @@ const formSchema = z.object({
   }),
   holes: z.array(
     z.object({
-      number: z.number({ invalid_type_error: "Must be a number" }).int().positive("Must be positive"),
-      par: z.number({ invalid_type_error: "Must be a number" }).int().positive("Must be positive"),
+      number: z.number().int().positive("Must be positive"),
+      par: z.number().int().positive("Must be positive"),
     })
   ),
 });
@@ -78,7 +78,6 @@ export default function AddCoursePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
-                control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
@@ -91,7 +90,6 @@ export default function AddCoursePage() {
                 )}
               />
               <FormField
-                control={form.control}
                 name="location"
                 render={({ field }) => (
                   <FormItem>
@@ -124,7 +122,6 @@ export default function AddCoursePage() {
                   <CardContent className="p-4 flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
                   <div className="flex-1">
                     <FormField
-                      control={form.control}
                       name={`holes.${index}.number` as const}
                       render={({ field }) => (
                         <FormItem>
@@ -139,7 +136,6 @@ export default function AddCoursePage() {
                   </div>
                   <div className="flex-1">
                     <FormField
-                      control={form.control}
                       name={`holes.${index}.par` as const}
                       render={({ field }) => (
                         <FormItem>

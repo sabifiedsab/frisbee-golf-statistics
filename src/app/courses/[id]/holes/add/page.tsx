@@ -72,7 +72,6 @@ export default function AddHolePage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
-                control={form.control}
                 name="number"
                 render={({ field }) => (
                   <FormItem>
@@ -85,7 +84,6 @@ export default function AddHolePage() {
                 )}
               />
               <FormField
-                control={form.control}
                 name="par"
                 render={({ field }) => (
                   <FormItem>

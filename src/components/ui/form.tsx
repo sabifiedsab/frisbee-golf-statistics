@@ -2,13 +2,15 @@
 
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
-import { useFormContext, FormProvider, Controller } from "react-hook-form"
+import { useFormContext, FormProvider, Controller, type UseFormReturn, type FieldValues, type FieldError } from "react-hook-form"
 import { cn } from "@/lib/utils"
 
-export function Form({
+const FormFieldContext = React.createContext<string>("")
+
+export function Form<TFieldValues extends FieldValues = FieldValues>({
   children,
   ...props
-}: React.ComponentPropsWithoutRef<"form">) {
+}: { children: React.ReactNode } & UseFormReturn<TFieldValues>) {
   return (
     <FormProvider {...props}>
       {children}
@@ -24,21 +26,27 @@ export function FormField({
   shouldUnregister,
 }: {
   name: any
-  render: (props: { field: any }) => React.ReactNode
+  render: (props: { field: any }) => React.ReactElement
   rules?: any
   defaultValue?: any
   shouldUnregister?: boolean
 }) {
   return (
-    <Controller
-      name={name}
-      control={useFormContext().control}
-      rules={rules}
-      defaultValue={defaultValue}
-      shouldUnregister={shouldUnregister}
-      render={({ field }) => render({ field })}
-    />
+    <FormFieldContext.Provider value={name}>
+      <Controller
+        name={name}
+        control={useFormContext().control}
+        rules={rules}
+        defaultValue={defaultValue}
+        shouldUnregister={shouldUnregister}
+        render={({ field }) => render({ field })}
+      />
+    </FormFieldContext.Provider>
   )
+}
+
+function get(obj: any, path: string): any {
+  return path.split(".").reduce((acc, key) => (acc ? acc[key] : undefined), obj)
 }
 
 export function FormItem({
@@ -58,7 +66,7 @@ export function FormLabel({
 }: {
   className?: string
   children: React.ReactNode
-} & React.LabelHTMLAttributes<HTMLLabelElement>) {
+} & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
@@ -73,24 +81,17 @@ export function FormLabel({
 }
 
 export function FormControl({
-  onChange,
-  onBlur,
-  name,
   ref,
   ...props
 }: React.ComponentPropsWithoutRef<"input"> & {
   onChange?: (value: any) => void
   onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void
-  name?: string
   ref?: React.Ref<HTMLInputElement>
 }) {
   return (
     <Slot
       {...props}
       ref={ref}
-      onChange={onChange}
-      onBlur={onBlur}
-      name={name}
     />
   )
 }
@@ -108,7 +109,9 @@ export function FormMessage({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
-  const { formState: { error } } = useFormContext()
+  const fieldName = React.useContext(FormFieldContext)
+  const { formState: { errors } } = useFormContext()
+  const error: FieldError | undefined = get(errors, fieldName)
   return (
     <span
       className={cn(

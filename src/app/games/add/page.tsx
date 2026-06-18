@@ -77,7 +77,6 @@ export default function AddGamePage() {
           <Form {...form}>
             <form className="space-y-4">
               <FormField
-                control={form.control}
                 name="courseId"
                 render={({ field }) => (
                   <FormItem>

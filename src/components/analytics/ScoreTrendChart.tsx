@@ -28,7 +28,7 @@ export function ScoreTrendChart({ data }: AnalyticsChartProps) {
           <YAxis />
           <Tooltip
             labelFormatter={(label) => new Date(label).toLocaleDateString()}
-            formatter={(value: number, name: string) => [value, name]}
+            formatter={(value: any, name: any) => [value, name]}
           />
           <Legend />
           <Line

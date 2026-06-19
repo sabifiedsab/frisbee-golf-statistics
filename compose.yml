@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "8080:3000"
+      - "11455:3000"
     volumes:
       - frisbee-golf-data:/app/data
     environment:
@@ -11,3 +11,4 @@ services:
 
 volumes:
   frisbee-golf-data:
+

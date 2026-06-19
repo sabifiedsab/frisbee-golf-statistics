@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.isAdmin) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
     const body = await req.json();
     const { name, location, holes } = body;
 
@@ -30,9 +37,21 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const courses = await prisma.course.findMany();
+    const session = await getServerSession(authOptions);
+    const includeArchived = req.nextUrl.searchParams.get("includeArchived") === "true";
+    const where = includeArchived ? {} : { isArchived: false };
+
+    // Only admins can see archived courses
+    if (includeArchived && !session?.user?.isAdmin) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
+    const courses = await prisma.course.findMany({
+      where,
+      orderBy: { name: "asc" },
+    });
     return NextResponse.json(courses);
   } catch (error) {
     console.error("Error fetching courses:", error);

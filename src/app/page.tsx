@@ -11,6 +11,7 @@ import { useSession } from "next-auth/react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AnalyticsSummary } from "@/components/analytics/analytics-summary";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/format";
 
 interface GameSummary {
   id: string;
@@ -148,11 +149,13 @@ export default function HomePage() {
           <p className="text-muted-foreground">Welcome back, {session.user?.name}.</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/courses/add">
-            <Button variant="outline" size="sm">
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Course
-            </Button>
-          </Link>
+          {session.user?.isAdmin && (
+            <Link href="/courses/add">
+              <Button variant="outline" size="sm">
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Course
+              </Button>
+            </Link>
+          )}
           <Link href="/games/add">
             <Button size="sm">
               <PlusCircle className="mr-2 h-4 w-4" /> Log Game
@@ -258,7 +261,7 @@ export default function HomePage() {
                     <Link href={`/games/${game.id}`} className="flex-1 flex items-center justify-between min-w-0">
                       <div className="min-w-0">
                         <p className="font-medium truncate">{game.course.name}</p>
-                        <p className="text-sm text-muted-foreground">{new Date(game.date).toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground">{formatDateTime(game.date)}</p>
                       </div>
                       <div className="text-right shrink-0 ml-4">
                         <div className="flex items-center gap-2">

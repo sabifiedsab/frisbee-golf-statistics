@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    // Fetch all games with their participants, scores and hole par information
+    const { searchParams } = new URL(req.url);
+    const courseId = searchParams.get("courseId");
+
+    // Fetch games with their participants, scores and hole par information
     const games = await prisma.game.findMany({
+      where: courseId ? { courseId } : undefined,
       include: {
         participants: {
           include: {

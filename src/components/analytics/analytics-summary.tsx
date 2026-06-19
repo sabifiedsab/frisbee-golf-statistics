@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
 import { TrendingUp, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/format";
 
 interface TrendData {
   date: string | Date;
@@ -63,7 +64,7 @@ export function AnalyticsSummary() {
   const best = trends.reduce((best, t) => (t.averageScore < best.averageScore ? t : best), trends[0]);
 
   const chartData = trends.map((t) => ({
-    date: new Date(t.date).toLocaleDateString(navigator.language, { month: "short", day: "numeric" }),
+    date: formatDate(t.date),
     avg: t.averageScore,
   }));
 

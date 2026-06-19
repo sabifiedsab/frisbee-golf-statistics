@@ -3,8 +3,9 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, Shield, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const hoverQuery = "(hover: hover) and (pointer: fine)";
 const subscribe = (callback: () => void) => {
@@ -16,10 +17,11 @@ const getSnapshot = () => window.matchMedia(hoverQuery).matches;
 const getServerSnapshot = () => false;
 
 export function UserMenu() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const router = useRouter();
   const useHover = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [open, setOpen] = useState(false);
+  const [isSwitchingLang, setIsSwitchingLang] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -52,9 +54,35 @@ export function UserMenu() {
     signOut({ redirect: false }).then(() => router.push("/"));
   }
 
+  function navigate(path: string) {
+    setOpen(false);
+    router.push(path);
+  }
+
+  async function toggleLanguage() {
+    if (isSwitchingLang) return;
+    const newLang = session?.user?.language === "no" ? "en" : "no";
+    setIsSwitchingLang(true);
+    try {
+      const res = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: newLang }),
+      });
+      if (!res.ok) throw new Error("Failed to update language");
+      await updateSession();
+      toast.success(`Language: ${newLang === "no" ? "Norwegian" : "English"}`);
+    } catch {
+      toast.error("Failed to update language");
+    } finally {
+      setIsSwitchingLang(false);
+    }
+  }
+
   if (!session?.user?.name) return null;
 
   const initial = session.user.name.charAt(0).toUpperCase();
+  const currentLang = session.user.language ?? "en";
 
   return (
     <div
@@ -87,7 +115,7 @@ export function UserMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-1 min-w-[10rem] rounded-md border bg-popover p-1 shadow-md z-50"
+          className="absolute right-0 top-full mt-1 min-w-[12rem] rounded-md border bg-popover p-1 shadow-md z-50"
           {...(useHover
             ? {
                 onMouseEnter: clearCloseTimer,
@@ -98,6 +126,31 @@ export function UserMenu() {
           <div className="px-2 py-1.5 text-xs text-muted-foreground border-b mb-1">
             {session.user.name}
           </div>
+
+          {session.user.isAdmin && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => navigate("/admin")}
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-accent transition-colors text-left"
+            >
+              <Shield className="h-4 w-4" />
+              Admin
+            </button>
+          )}
+
+          <button
+            type="button"
+            role="menuitem"
+            onClick={toggleLanguage}
+            disabled={isSwitchingLang}
+            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-accent transition-colors text-left"
+          >
+            <Globe className="h-4 w-4" />
+            Language: {currentLang === "no" ? "Norwegian" : "English"}
+          </button>
+
+          <div className="border-t my-1" />
           <button
             type="button"
             role="menuitem"

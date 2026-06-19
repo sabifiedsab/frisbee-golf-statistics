@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ChevronLeft, Trash2, Play, User } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Stepper } from "@/components/stepper";
+import { formatDateTime } from "@/lib/format";
 
 interface Hole {
   id: string;
@@ -191,7 +192,7 @@ export default function ScorecardPage() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{game.course.name}</h1>
-          <p className="text-sm text-muted-foreground">{new Date(game.date).toLocaleString()}</p>
+          <p className="text-sm text-muted-foreground">{formatDateTime(game.date)}</p>
         </div>
         <Button variant="outline" size="sm" className="mr-2" onClick={() => router.push(`/games/${id}/play`)}>
           <Play className="mr-1 h-4 w-4" /> Play

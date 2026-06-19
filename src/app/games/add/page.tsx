@@ -179,7 +179,9 @@ export default function AddGamePage() {
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a course" />
+                          <SelectValue placeholder="Select a course">
+                            {(value: string) => courses.find((c) => c.id === value)?.name ?? "Select a course"}
+                          </SelectValue>
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>

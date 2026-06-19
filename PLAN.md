@@ -56,7 +56,7 @@ The user wants to build a website to track statistics from their frisbee golf ga
 - [ ] Update analytics logic to filter by `userId` and `Participant`
 - [ ] Enable per-player statistics in visualizations
 
-### 8. Phase 8: UX & QoL [IN PROGRESS]
+### 8. Phase 8: UX & QoL [COMPLETED]
 - [x] Account indicator: avatar with initial in header; hover-open on desktop, tap on touch; dropdown shows username + sign out (redirects to /)
 - [x] Chip tabs on home: `Games` | `Analytics` replace the "Recent Games" header; stat cards stay above; `?tab=` URL sync
 - [x] Analytics summary on home tab: concise stats (games played, avg score, putts, best round) + sparkline + link to full `/analytics` page
@@ -66,9 +66,23 @@ The user wants to build a website to track statistics from their frisbee golf ga
 - [x] Scorecard: defaults to par display for holes with no DB record (consistent with play mode)
 - [x] Remove dead `/dashboard` redirect route
 
+### 9. Phase 9: Admin, Course Management, Per-Course Analytics, Locale [COMPLETED]
+- [x] Admin role: `isAdmin` on User model; carried through JWT + session; ADMIN_USERNAME env var auto-promotes on login
+- [x] API gating: POST /api/courses, POST /api/holes, PUT /api/courses/[id], POST /api/courses/[id]/fork all require admin
+- [x] Course creation: batch-add holes (Add 9, Add 18, custom count); par uses Stepper component (+/− buttons); admin-gated
+- [x] Course editing: edit-in-place for name/location/hole par; blocks deletion of holes with recorded scores
+- [x] Course forking: "Save as new course" creates a copy with edits and archives the original (historical games keep pointing at the original)
+- [x] Course archival: `isArchived` on Course; archived courses hidden from the Log Game dropdown; admin can see all via `?includeArchived=true`
+- [x] Admin dashboard: `/admin` page with course list (including archived), user list, toggle admin status, quick stats
+- [x] Admin link in user-menu dropdown (only for admins)
+- [x] Per-course analytics: `?courseId=` filter on /api/analytics/trends; course selector dropdown on /analytics page
+- [x] Date/time format: DD/MM/YYYY + 24h via `src/lib/format.ts`; replaced all `toLocaleString`/`toLocaleDateString` call sites
+- [x] Language preference: `language` on User model; EN/NO toggle in user-menu (persists via PATCH /api/users/me); dummy for future i18n
+- [x] Fix: course dropdown on /games/add showed the course ID after selection instead of the name (base-ui Select.Value needs a render function)
+
 ## Current Issues
-- A course must be added via "Add Course" before starting a game (DB was reset)
-- Analytics page uses aggregate of all participants — needs per-user filtering (Phase 7)
+- Analytics page still aggregates across all participants — needs per-user filtering (Phase 7)
+- Language toggle is a dummy (persists preference but no UI string translation yet — full i18n is a future phase)
 
 ## Verification Plan
 - [x] Data Integrity: Verify that a game can be saved and retrieved correctly from the database.
@@ -76,3 +90,4 @@ The user wants to build a website to track statistics from their frisbee golf ga
 - [x] Visuals: Ensure charts update correctly when new game data is added.
 - [x] Responsive Test: Verify the scoring form is usable on a mobile device.
 - [x] **Live scoring: Totals, progress dots, and participant switching update in real time as strokes/putts are entered**
+- [x] **Admin: Non-admins can't create/edit courses; admin bootstrap via ADMIN_USERNAME env var works on login**

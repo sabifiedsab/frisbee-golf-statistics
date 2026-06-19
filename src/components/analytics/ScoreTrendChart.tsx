@@ -1,4 +1,5 @@
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { formatDate } from "@/lib/format";
 
 interface TrendData {
   date: Date;
@@ -23,11 +24,11 @@ export function ScoreTrendChart({ data }: AnalyticsChartProps) {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="date"
-            tickFormatter={(tick) => new Date(tick).toLocaleDateString()}
+            tickFormatter={(tick) => formatDate(tick)}
           />
           <YAxis />
           <Tooltip
-            labelFormatter={(label) => new Date(label).toLocaleDateString()}
+            labelFormatter={(label) => formatDate(label)}
             formatter={(value, name) => [value, name]}
           />
           <Legend />

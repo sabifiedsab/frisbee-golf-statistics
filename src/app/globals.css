@@ -165,7 +165,7 @@
   --secondary: oklch(0.90 0.04 200);
   --secondary-foreground: oklch(0.25 0.04 60);
   --muted: oklch(0.88 0.04 200);
-  --muted-foreground: oklch(0.50 0.04 60);
+  --muted-foreground: oklch(0.35 0.04 60);
   --accent: oklch(0.88 0.05 200);
   --accent-foreground: oklch(0.25 0.04 60);
   --destructive: oklch(0.60 0.22 25);
@@ -235,7 +235,7 @@
 
 /* Sunny theme: sky-gradient body background + sun glow */
 [data-theme="sunny"] body {
-  background: linear-gradient(180deg, oklch(0.88 0.08 230) 0%, oklch(0.95 0.04 220) 40%, oklch(0.97 0.03 80) 100%);
+  background: linear-gradient(180deg, oklch(0.88 0.08 230) 0%, oklch(0.95 0.04 220) 40%, oklch(0.97 0.03 80) 100%) fixed;
   min-height: 100vh;
   position: relative;
 }

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import Link from "next/link";
-import { PlusCircle, Trophy, LayoutDashboard, Trash2, LogIn, UserPlus } from "lucide-react";
+import { PlusCircle, Trophy, LayoutDashboard, Trash2, LogIn, UserPlus, Medal } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AnalyticsSummary } from "@/components/analytics/analytics-summary";
@@ -20,6 +20,7 @@ interface GameSummary {
   totalStrokes: number;
   totalPutts: number;
   overUnder: number;
+  isComplete: boolean;
 }
 
 type Tab = "games" | "analytics";
@@ -141,6 +142,11 @@ export default function HomePage() {
     { key: "analytics", label: "Analytics" },
   ];
 
+  const completeGames = games.filter((g) => g.isComplete);
+  const bestRound = completeGames.length > 0
+    ? completeGames.reduce((best, g) => (g.overUnder < best.overUnder ? g : best), completeGames[0])
+    : null;
+
   return (
     <div className="container mx-auto py-10 px-4 max-w-4xl">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -187,11 +193,20 @@ export default function HomePage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Next Goal</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Best Round</CardTitle>
+            <Medal className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Lower your avg</div>
+            {bestRound ? (
+              <>
+                <div className={`text-2xl font-bold ${bestRound.overUnder < 0 ? "text-green-600" : bestRound.overUnder > 0 ? "text-red-600" : ""}`}>
+                  {bestRound.overUnder === 0 ? "E" : bestRound.overUnder > 0 ? `+${bestRound.overUnder}` : `${bestRound.overUnder}`}
+                </div>
+                <p className="text-xs text-muted-foreground truncate">{bestRound.course.name}</p>
+              </>
+            ) : (
+              <div className="text-2xl font-bold text-muted-foreground">—</div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -261,7 +276,16 @@ export default function HomePage() {
                     <Link href={`/games/${game.id}`} className="flex-1 flex items-center justify-between min-w-0">
                       <div className="min-w-0">
                         <p className="font-medium truncate">{game.course.name}</p>
-                        <p className="text-sm text-muted-foreground">{formatDateTime(game.date)}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-muted-foreground">{formatDateTime(game.date)}</p>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                            game.isComplete
+                              ? "bg-green-600/10 text-green-600"
+                              : "bg-muted text-muted-foreground"
+                          }`}>
+                            {game.isComplete ? "Complete" : "In progress"}
+                          </span>
+                        </div>
                       </div>
                       <div className="text-right shrink-0 ml-4">
                         <div className="flex items-center gap-2">

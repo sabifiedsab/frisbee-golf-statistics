@@ -80,6 +80,16 @@ The user wants to build a website to track statistics from their frisbee golf ga
 - [x] Language preference: `language` on User model; EN/NO toggle in user-menu (persists via PATCH /api/users/me); dummy for future i18n
 - [x] Fix: course dropdown on /games/add showed the course ID after selection instead of the name (base-ui Select.Value needs a render function)
 
+### 10. Phase 10: Play Mode Polish & Game Metadata [COMPLETED]
+- [x] Play mode color coding: big stroke number colored by par diff (green=under, red=over); progress dots colored by par diff for edited holes
+- [x] Scorecard: per-hole par-diff indicator ("N under par" / "N over par") in green/red below each hole card
+- [x] Score animation: scorePulse keyframe (scale 1 → 1.08 → 1 over 180ms) replayed via React key remount on the strokes and putts numbers
+- [x] Haptic feedback: navigator.vibrate(10) on each stroke/putt +/- tap; vibrate(40) on finish game; no-op on devices without vibration
+- [x] Best Round stat card: replaced the "Next Goal: Lower your avg" placeholder with the lowest over-under from completed games + course name
+- [x] Game completion badge: API returns isComplete (all holes have scores); home game cards show green "Complete" or muted "In progress" badge
+- [x] Backdate games: optional datetime-local input on Log Game page; passed to POST /api/games
+- [x] Edit game date: pencil icon on scorecard reveals datetime-local input; PATCH /api/games/[id] updates date (auth: participant or creator only)
+
 ## Current Issues
 - Analytics page still aggregates across all participants — needs per-user filtering (Phase 7)
 - Language toggle is a dummy (persists preference but no UI string translation yet — full i18n is a future phase)
@@ -91,3 +101,4 @@ The user wants to build a website to track statistics from their frisbee golf ga
 - [x] Responsive Test: Verify the scoring form is usable on a mobile device.
 - [x] **Live scoring: Totals, progress dots, and participant switching update in real time as strokes/putts are entered**
 - [x] **Admin: Non-admins can't create/edit courses; admin bootstrap via ADMIN_USERNAME env var works on login**
+- [x] **Play polish: Color coding, animation, haptics all respond to par diff and score changes**

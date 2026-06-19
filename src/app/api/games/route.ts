@@ -90,6 +90,7 @@ export async function GET() {
       const totalStrokes = myScores.reduce((sum, s) => sum + s.strokes, 0);
       const totalPutts = myScores.reduce((sum, s) => sum + s.putts, 0);
       const overUnder = totalStrokes - totalPar;
+      const isComplete = myScores.length === game.course.holes.length;
 
       return {
         id: game.id,
@@ -98,6 +99,7 @@ export async function GET() {
         totalStrokes,
         totalPutts,
         overUnder,
+        isComplete,
         participants: game.participants.map(p => ({
           id: p.id,
           name: p.name,

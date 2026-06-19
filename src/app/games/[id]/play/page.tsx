@@ -155,11 +155,16 @@ export default function PlayModePage() {
     if (index >= 0 && index < holes.length) setHoleIndex(index);
   }, [holes.length]);
 
+  function vibrate(ms: number) {
+    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(ms);
+  }
+
   const addStroke = useCallback(() => {
     if (!game || !currentHole || !game.participants[participantIndex]) return;
     const newStrokes = strokes + 1;
     const newPutts = Math.min(putts, newStrokes);
     updateScore(currentHole.id, game.participants[participantIndex].id, newStrokes, newPutts);
+    vibrate(10);
   }, [currentHole, strokes, putts, updateScore, game, participantIndex]);
 
   const removeStroke = useCallback(() => {
@@ -167,18 +172,21 @@ export default function PlayModePage() {
     const newStrokes = strokes - 1;
     const newPutts = Math.min(putts, newStrokes);
     updateScore(currentHole.id, game.participants[participantIndex].id, newStrokes, newPutts);
+    vibrate(10);
   }, [currentHole, strokes, putts, updateScore, game, participantIndex]);
 
   function addPutt() {
     if (!game || !currentHole || !game.participants[participantIndex]) return;
     if (putts >= strokes) return;
     updateScore(currentHole.id, game.participants[participantIndex].id, strokes, putts + 1);
+    vibrate(10);
   }
 
   function removePutt() {
     if (!game || !currentHole || !game.participants[participantIndex]) return;
     if (putts <= 0) return;
     updateScore(currentHole.id, game.participants[participantIndex].id, strokes, putts - 1);
+    vibrate(10);
   }
 
   const finishGame = useCallback(async () => {
@@ -220,6 +228,7 @@ export default function PlayModePage() {
 
     try {
       await Promise.all(fillPromises);
+      vibrate(40);
       toast.success("Round complete!");
     } catch {
       toast.error("Some scores may not have saved");
@@ -269,6 +278,20 @@ export default function PlayModePage() {
 
   const totals = computeTotals();
 
+  function parDiffColor(strokesVal: number, par: number): string {
+    const diff = strokesVal - par;
+    if (diff < 0) return "text-green-600";
+    if (diff > 0) return "text-red-600";
+    return "text-foreground";
+  }
+
+  function parDiffDotColor(strokesVal: number, par: number): string {
+    const diff = strokesVal - par;
+    if (diff < 0) return "bg-green-600";
+    if (diff > 0) return "bg-red-600";
+    return "bg-muted-foreground";
+  }
+
   if (isLoading) return <div className="h-screen flex items-center justify-center">Loading...</div>;
   if (!game) return <div className="h-screen flex items-center justify-center">Game not found.</div>;
 
@@ -314,7 +337,12 @@ export default function PlayModePage() {
           </Button>
 
           <div className="flex flex-col items-center gap-4 sm:gap-6">
-            <div className="text-6xl sm:text-7xl font-bold tabular-nums">{strokes}</div>
+            <div
+              key={strokes}
+              className={`text-6xl sm:text-7xl font-bold tabular-nums ${parDiffColor(strokes, currentHole?.par ?? 0)} [animation:scorePulse_180ms_ease-out]`}
+            >
+              {strokes}
+            </div>
             <div className="flex gap-4 sm:gap-6">
               <button
                 onClick={removeStroke}
@@ -340,7 +368,7 @@ export default function PlayModePage() {
                 <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
               <div className="text-center min-w-[3ch]">
-                <p className="text-xl sm:text-2xl font-bold tabular-nums">{putts}</p>
+                <p key={putts} className="text-xl sm:text-2xl font-bold tabular-nums [animation:scorePulse_180ms_ease-out]">{putts}</p>
                 <p className="text-xs text-muted-foreground">Putts</p>
                 <p className="text-[10px] text-muted-foreground/60">in strokes</p>
               </div>
@@ -411,7 +439,7 @@ export default function PlayModePage() {
                   i === holeIndex
                     ? "bg-foreground scale-125"
                     : filled
-                      ? "bg-muted-foreground"
+                      ? parDiffDotColor(s.strokes, hole.par)
                       : "bg-muted"
                 }`}
               />

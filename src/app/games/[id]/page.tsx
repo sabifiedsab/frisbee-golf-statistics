@@ -5,8 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, Trash2, Play, User } from "lucide-react";
+import { ChevronLeft, Trash2, Play, User, Pencil, Check, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Stepper } from "@/components/stepper";
 import { formatDateTime } from "@/lib/format";
@@ -49,6 +50,9 @@ export default function ScorecardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [editDate, setEditDate] = useState("");
+  const [isSavingDate, setIsSavingDate] = useState(false);
   const [participantIndex, setParticipantIndex] = useState(0);
   const [scores, setScores] = useState<Record<string, { strokes: number; putts: number; edited: boolean }>>({});
   const scoresByParticipant = useRef<Record<string, Record<string, { strokes: number; putts: number; edited: boolean }>>>({});
@@ -181,6 +185,39 @@ export default function ScorecardPage() {
     }
   }
 
+  function startEditDate() {
+    if (!game) return;
+    // Format to datetime-local input value: YYYY-MM-DDTHH:MM
+    const d = new Date(game.date);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    setEditDate(local.toISOString().slice(0, 16));
+    setIsEditingDate(true);
+  }
+
+  async function saveDate() {
+    if (!game || !editDate) return;
+    setIsSavingDate(true);
+    try {
+      const res = await fetch(`/api/games/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: new Date(editDate).toISOString() }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update date");
+      }
+      const data = await res.json();
+      setGame({ ...game, date: data.date });
+      setIsEditingDate(false);
+      toast.success("Date updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update date");
+    } finally {
+      setIsSavingDate(false);
+    }
+  }
+
   if (isLoading) return <div className="container mx-auto py-10 text-center">Loading scorecard...</div>;
   if (!game) return <div className="container mx-auto py-10 text-center">Game not found.</div>;
 
@@ -192,7 +229,33 @@ export default function ScorecardPage() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{game.course.name}</h1>
-          <p className="text-sm text-muted-foreground">{formatDateTime(game.date)}</p>
+          {isEditingDate ? (
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                type="datetime-local"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                className="text-sm h-7 w-auto"
+              />
+              <Button variant="ghost" size="icon-sm" onClick={saveDate} disabled={isSavingDate}>
+                <Check className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon-sm" onClick={() => setIsEditingDate(false)} disabled={isSavingDate}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm text-muted-foreground">{formatDateTime(game.date)}</p>
+              <button
+                onClick={startEditDate}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Edit date"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            </div>
+          )}
         </div>
         <Button variant="outline" size="sm" className="mr-2" onClick={() => router.push(`/games/${id}/play`)}>
           <Play className="mr-1 h-4 w-4" /> Play
@@ -264,6 +327,8 @@ export default function ScorecardPage() {
             const s = scores[hole.id];
             const strokesCount = s?.strokes ?? 0;
             const puttsCount = s?.putts ?? 0;
+            const diff = strokesCount - hole.par;
+            const strokesColor = diff < 0 ? "text-green-600" : diff > 0 ? "text-red-600" : "";
             return (
               <Card key={hole.id} className="overflow-hidden">
                 <div className="grid grid-cols-4 items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2">
@@ -288,6 +353,11 @@ export default function ScorecardPage() {
                     />
                   </div>
                 </div>
+                {s?.edited && strokesColor && (
+                  <div className={`text-center text-xs font-medium ${strokesColor} pb-1`}>
+                    {diff < 0 ? `${Math.abs(diff)} under par` : `${diff} over par`}
+                  </div>
+                )}
               </Card>
             );
           })}

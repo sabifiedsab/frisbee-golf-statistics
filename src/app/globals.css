@@ -128,3 +128,15 @@
     @apply font-sans;
   }
 }
+
+@keyframes scorePulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

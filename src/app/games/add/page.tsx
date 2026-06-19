@@ -39,6 +39,7 @@ export default function AddGamePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [gameDate, setGameDate] = useState<string>("");
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -138,6 +139,7 @@ export default function AddGamePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: form.getValues("courseId"),
+          date: gameDate ? new Date(gameDate).toISOString() : undefined,
           participants: participants.map(p => ({
             name: p.name.trim(),
             userId: p.userId || undefined,
@@ -196,6 +198,16 @@ export default function AddGamePage() {
                   </FormItem>
                 )}
               />
+
+              <FormItem>
+                <FormLabel>Date &amp; time (optional)</FormLabel>
+                <Input
+                  type="datetime-local"
+                  value={gameDate}
+                  onChange={(e) => setGameDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Leave empty to use the current time.</p>
+              </FormItem>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">

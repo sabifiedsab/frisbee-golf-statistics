@@ -49,16 +49,17 @@ export default function ScorecardPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [participantIndex, setParticipantIndex] = useState(0);
-  const [scores, setScores] = useState<Record<string, { strokes: number; putts: number }>>({});
-  const scoresByParticipant = useRef<Record<string, Record<string, { strokes: number; putts: number }>>>({});
+  const [scores, setScores] = useState<Record<string, { strokes: number; putts: number; edited: boolean }>>({});
+  const scoresByParticipant = useRef<Record<string, Record<string, { strokes: number; putts: number; edited: boolean }>>>({});
 
   function buildScoreMap(participantScores: ScoreData[], holes: Hole[]) {
-    const map: Record<string, { strokes: number; putts: number }> = {};
+    const map: Record<string, { strokes: number; putts: number; edited: boolean }> = {};
     holes.forEach((hole) => {
       const existing = participantScores.find((s) => s.holeId === hole.id);
       map[hole.id] = {
-        strokes: existing?.strokes ?? 0,
+        strokes: existing?.strokes ?? hole.par,
         putts: existing?.putts ?? 0,
+        edited: !!existing,
       };
     });
     return map;
@@ -73,7 +74,7 @@ export default function ScorecardPage() {
         setGame(data);
         if (data.participants && data.participants.length > 0) {
           const holes = data.course.holes;
-          const byParticipant: Record<string, Record<string, { strokes: number; putts: number }>> = {};
+          const byParticipant: Record<string, Record<string, { strokes: number; putts: number; edited: boolean }>> = {};
           data.participants.forEach((p: Participant) => {
             byParticipant[p.id] = buildScoreMap(p.scores || [], holes);
           });
@@ -140,10 +141,10 @@ export default function ScorecardPage() {
     if (pid) {
       scoresByParticipant.current[pid] = {
         ...scoresByParticipant.current[pid],
-        [holeId]: { strokes: safe, putts: newPutts },
+        [holeId]: { strokes: safe, putts: newPutts, edited: true },
       };
     }
-    setScores(prev => ({ ...prev, [holeId]: { strokes: safe, putts: newPutts } }));
+    setScores(prev => ({ ...prev, [holeId]: { strokes: safe, putts: newPutts, edited: true } }));
     saveScore(holeId, safe, newPutts);
   }
 
@@ -154,12 +155,12 @@ export default function ScorecardPage() {
     if (pid) {
       scoresByParticipant.current[pid] = {
         ...scoresByParticipant.current[pid],
-        [holeId]: { strokes: maxStrokes, putts: safe },
+        [holeId]: { strokes: maxStrokes, putts: safe, edited: true },
       };
     }
     setScores(prev => ({
       ...prev,
-      [holeId]: { strokes: maxStrokes, putts: safe },
+      [holeId]: { strokes: maxStrokes, putts: safe, edited: true },
     }));
     saveScore(holeId, maxStrokes, safe);
   }

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Grid3x3, House, Minus, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Grid3x3, House, Minus, Plus, Flag } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 interface Hole {
@@ -46,19 +46,20 @@ export default function PlayModePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [holeIndex, setHoleIndex] = useState(0);
   const [participantIndex, setParticipantIndex] = useState(0);
-  const [scores, setScores] = useState<Record<string, { strokes: number; putts: number }>>({});
-  const scoresByParticipant = useRef<Record<string, Record<string, { strokes: number; putts: number }>>>({});
+  const [scores, setScores] = useState<Record<string, { strokes: number; putts: number; edited: boolean }>>({});
+  const scoresByParticipant = useRef<Record<string, Record<string, { strokes: number; putts: number; edited: boolean }>>>({});
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pendingSave = useRef<Record<string, { participantId: string; holeId: string; strokes: number; putts: number }>>({});
   const touchStartX = useRef(0);
 
   const buildScoreMap = useCallback((participantScores: ScoreData[], holes: Hole[]) => {
-    const map: Record<string, { strokes: number; putts: number }> = {};
+    const map: Record<string, { strokes: number; putts: number; edited: boolean }> = {};
     holes.forEach((hole) => {
       const existing = participantScores.find((s) => s.holeId === hole.id);
       map[hole.id] = {
-        strokes: existing?.strokes ?? 0,
+        strokes: existing?.strokes ?? hole.par,
         putts: existing?.putts ?? 0,
+        edited: !!existing,
       };
     });
     return map;
@@ -74,7 +75,7 @@ export default function PlayModePage() {
 
         if (data.participants && data.participants.length > 0) {
           const holes = data.course.holes;
-          const byParticipant: Record<string, Record<string, { strokes: number; putts: number }>> = {};
+          const byParticipant: Record<string, Record<string, { strokes: number; putts: number; edited: boolean }>> = {};
           data.participants.forEach((p: Participant) => {
             byParticipant[p.id] = buildScoreMap(p.scores || [], holes);
           });
@@ -144,9 +145,9 @@ export default function PlayModePage() {
   const updateScore = useCallback((holeId: string, participantId: string, strokesVal: number, puttsVal: number) => {
     scoresByParticipant.current[participantId] = {
       ...scoresByParticipant.current[participantId],
-      [holeId]: { strokes: strokesVal, putts: puttsVal },
+      [holeId]: { strokes: strokesVal, putts: puttsVal, edited: true },
     };
-    setScores((prev) => ({ ...prev, [holeId]: { strokes: strokesVal, putts: puttsVal } }));
+    setScores((prev) => ({ ...prev, [holeId]: { strokes: strokesVal, putts: puttsVal, edited: true } }));
     saveScore(participantId, holeId, strokesVal, puttsVal);
   }, [saveScore]);
 
@@ -180,16 +181,66 @@ export default function PlayModePage() {
     updateScore(currentHole.id, game.participants[participantIndex].id, strokes, putts - 1);
   }
 
+  const finishGame = useCallback(async () => {
+    if (!game || !game.participants[participantIndex]) return;
+    const participant = game.participants[participantIndex];
+    const participantScores = scoresByParticipant.current[participant.id] || {};
+
+    // Fill par for untouched holes
+    const fillPromises: Promise<Response>[] = [];
+    game.course.holes.forEach((hole) => {
+      const s = participantScores[hole.id];
+      if (!s || !s.edited) {
+        scoresByParticipant.current[participant.id] = {
+          ...scoresByParticipant.current[participant.id],
+          [hole.id]: { strokes: hole.par, putts: 0, edited: true },
+        };
+        fillPromises.push(
+          fetch("/api/scores", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ participantId: participant.id, holeId: hole.id, strokes: hole.par, putts: 0 }),
+          })
+        );
+      }
+    });
+
+    // Clear any pending debounced saves first
+    Object.values(saveTimers.current).forEach(clearTimeout);
+    Object.entries(pendingSave.current).forEach(([key, v]) => {
+      fillPromises.push(
+        fetch("/api/scores", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ participantId: v.participantId, holeId: v.holeId, strokes: v.strokes, putts: v.putts }),
+        })
+      );
+      delete pendingSave.current[key];
+    });
+
+    try {
+      await Promise.all(fillPromises);
+      toast.success("Round complete!");
+    } catch {
+      toast.error("Some scores may not have saved");
+    } finally {
+      router.push(`/games/${id}`);
+    }
+  }, [game, participantIndex, router, id]);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "ArrowLeft") goToHole(holeIndex - 1);
-      else if (e.key === "ArrowRight") goToHole(holeIndex + 1);
+      else if (e.key === "ArrowRight") {
+        if (holeIndex === holes.length - 1) finishGame();
+        else goToHole(holeIndex + 1);
+      }
       else if (e.key === "+" || e.key === "=") addStroke();
       else if (e.key === "-") removeStroke();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [holeIndex, goToHole, addStroke, removeStroke]);
+  }, [holeIndex, goToHole, addStroke, removeStroke, finishGame, holes.length]);
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
@@ -198,8 +249,10 @@ export default function PlayModePage() {
   function handleTouchEnd(e: React.TouchEvent) {
     const diff = touchStartX.current - e.changedTouches[0].clientX;
     if (Math.abs(diff) > 50) {
-      if (diff > 0) goToHole(holeIndex + 1);
-      else goToHole(holeIndex - 1);
+      if (diff > 0) {
+        if (holeIndex === holes.length - 1) finishGame();
+        else goToHole(holeIndex + 1);
+      } else goToHole(holeIndex - 1);
     }
   }
 
@@ -231,7 +284,11 @@ export default function PlayModePage() {
           <House className="h-5 w-5" />
         </Button>
         <div className="text-center">
-          <p className="text-sm text-muted-foreground">Hole {currentHole?.number} of {holes.length}</p>
+          <p className="text-sm font-medium">
+            <span className="text-muted-foreground">Hole {currentHole?.number} of {holes.length}</span>
+            <span className="text-muted-foreground/50 mx-1.5">·</span>
+            <span>Par {currentHole?.par}</span>
+          </p>
           <p className="text-lg font-bold truncate max-w-[150px]">{game.course.name}</p>
         </div>
         <div className="flex items-center gap-1">
@@ -244,10 +301,6 @@ export default function PlayModePage() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center gap-4 sm:gap-6 overflow-hidden px-4">
-        <div className="text-center shrink-0">
-          <span className="text-muted-foreground text-lg">Par {currentHole?.par}</span>
-        </div>
-
         {/* Nav + Controls row */}
         <div className="flex items-center justify-center w-full max-w-md gap-2 sm:gap-4">
           <Button
@@ -301,15 +354,27 @@ export default function PlayModePage() {
             </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => goToHole(holeIndex + 1)}
-            disabled={holeIndex === holes.length - 1}
-            className="size-12 sm:size-14 shrink-0"
-          >
-            <ChevronRight className="h-6 w-6 sm:h-7 sm:w-7" />
-          </Button>
+          {holeIndex === holes.length - 1 ? (
+            <Button
+              variant="default"
+              size="icon"
+              onClick={finishGame}
+              className="size-12 sm:size-14 shrink-0"
+              aria-label="Finish round"
+            >
+              <Flag className="h-6 w-6 sm:h-7 sm:w-7" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => goToHole(holeIndex + 1)}
+              disabled={holeIndex === holes.length - 1}
+              className="size-12 sm:size-14 shrink-0"
+            >
+              <ChevronRight className="h-6 w-6 sm:h-7 sm:w-7" />
+            </Button>
+          )}
         </div>
 
         <div className="border-t w-full max-w-xs pt-4">
@@ -337,7 +402,7 @@ export default function PlayModePage() {
         <div className="flex justify-center gap-1.5 mb-2">
           {holes.map((hole, i) => {
             const s = scores[hole.id];
-            const filled = s && s.strokes > 0;
+            const filled = s?.edited;
             return (
               <button
                 key={hole.id}

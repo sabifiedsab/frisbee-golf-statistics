@@ -56,9 +56,19 @@ The user wants to build a website to track statistics from their frisbee golf ga
 - [ ] Update analytics logic to filter by `userId` and `Participant`
 - [ ] Enable per-player statistics in visualizations
 
+### 8. Phase 8: UX & QoL [IN PROGRESS]
+- [x] Account indicator: avatar with initial in header; hover-open on desktop, tap on touch; dropdown shows username + sign out (redirects to /)
+- [x] Chip tabs on home: `Games` | `Analytics` replace the "Recent Games" header; stat cards stay above; `?tab=` URL sync
+- [x] Analytics summary on home tab: concise stats (games played, avg score, putts, best round) + sparkline + link to full `/analytics` page
+- [x] Start at par: new games default strokes to the hole's par (putts 0); track an `edited` flag so progress dots still reflect progress
+- [x] End game: last-hole chevron becomes a Finish button; fills par for untouched holes, toasts, navigates to the scorecard
+- [x] Play mode layout: consolidate hole info into the header (`Hole x/total · Par y`), freeing the center for the strokes display
+- [x] Scorecard: defaults to par display for holes with no DB record (consistent with play mode)
+- [x] Remove dead `/dashboard` redirect route
+
 ## Current Issues
 - A course must be added via "Add Course" before starting a game (DB was reset)
-- Analytics page uses aggregate of all participants — needs per-user filtering
+- Analytics page uses aggregate of all participants — needs per-user filtering (Phase 7)
 
 ## Verification Plan
 - [x] Data Integrity: Verify that a game can be saved and retrieved correctly from the database.

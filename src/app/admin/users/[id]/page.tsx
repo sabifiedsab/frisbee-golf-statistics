@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Stepper } from "@/components/stepper";
 import { toast } from "sonner";
 import Link from "next/link";
-import { ArrowLeft, TrendingUp, Calendar, Bird, Medal, Frown } from "lucide-react";
+import { ArrowLeft, TrendingUp, Calendar, Bird, Medal, Frown, ChevronDown, ChevronRight } from "lucide-react";
 import { formatDate } from "@/lib/format";
 
 interface HoleScore {
@@ -50,6 +50,9 @@ export default function UserDetailPage() {
   const [localScores, setLocalScores] = useState<Record<string, { strokes: number; putts: number }>>({});
   // Track which score IDs are saving
   const [savingScores, setSavingScores] = useState<Set<string>>(new Set());
+  // Which games are expanded
+  const [expandedGames, setExpandedGames] = useState<Set<string>>(new Set());
+  const gameRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -129,6 +132,29 @@ export default function UserDetailPage() {
     },
     [id]
   );
+
+  const toggleGame = useCallback((gameId: string) => {
+    setExpandedGames((prev) => {
+      const next = new Set(prev);
+      if (next.has(gameId)) {
+        next.delete(gameId);
+      } else {
+        next.add(gameId);
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    // When a game is expanded, scroll its card to the top of the screen
+    for (const gameId of expandedGames) {
+      const el = gameRefs.current[gameId];
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        break; // only scroll for the most recently expanded
+      }
+    }
+  }, [expandedGames]);
 
   if (status !== "authenticated" || !session?.user?.isAdmin) {
     return <div className="container mx-auto py-10 text-center">Checking access...</div>;
@@ -257,94 +283,110 @@ export default function UserDetailPage() {
       ) : (
         <div className="space-y-4">
           {games.map((game) => {
+            const isExpanded = expandedGames.has(game.id);
             const participant = game.participants[0];
             const scores = participant?.scores ?? [];
             const gameTotalStrokes = scores.reduce((s, sc) => s + sc.strokes, 0);
             const gameTotalPutts = scores.reduce((s, sc) => s + sc.putts, 0);
             const gameTotalPar = scores.reduce((s, sc) => s + sc.hole.par, 0);
             const vsPar = gameTotalStrokes > 0 ? gameTotalStrokes - gameTotalPar : 0;
+            const d = new Date(game.date);
+            const timeStr = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
 
             return (
-              <Card key={game.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="font-medium">{game.course.name}</p>
-                      <p className="text-sm text-muted-foreground">{formatDate(game.date)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold tabular-nums">
-                        {gameTotalStrokes > 0 ? `${gameTotalStrokes} strokes` : "No scores"}
-                      </p>
-                      {gameTotalStrokes > 0 && (
-                        <p className={`text-sm tabular-nums ${vsPar < 0 ? "text-green-500" : vsPar > 0 ? "text-red-400" : ""}`}>
-                          {vsPar === 0 ? "Even" : vsPar < 0 ? `${vsPar} under` : `+${vsPar}`} · {gameTotalPutts} putts
+              <Card key={game.id} ref={(el) => { gameRefs.current[game.id] = el; }}>
+                <button
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => toggleGame(game.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{game.course.name}</p>
+                          <p className="text-sm text-muted-foreground">{timeStr}, {formatDate(game.date)}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 ml-4">
+                        <p className="font-bold tabular-nums">
+                          {gameTotalStrokes > 0 ? `${gameTotalStrokes} strokes` : "No scores"}
                         </p>
-                      )}
+                        {gameTotalStrokes > 0 && (
+                          <p className={`text-sm tabular-nums ${vsPar < 0 ? "text-green-500" : vsPar > 0 ? "text-red-400" : ""}`}>
+                            {vsPar === 0 ? "Even" : vsPar < 0 ? `${vsPar} under` : `+${vsPar}`} · {gameTotalPutts} putts
+                          </p>
+                        )}
+                      </div>
                     </div>
+                  </CardContent>
+                </button>
+
+                {isExpanded && scores.length > 0 && (
+                  <div className="overflow-x-auto px-4 pb-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-muted-foreground">
+                          <th className="text-left py-1 pr-3">Hole</th>
+                          <th className="text-center py-1 px-2">Par</th>
+                          <th className="text-center py-1 px-2">Strokes</th>
+                          <th className="text-center py-1 px-2">Putts</th>
+                          <th className="text-center py-1 pl-2">vs Par</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scores.map((score) => {
+                          const local = localScores[score.id];
+                          const strokes = local?.strokes ?? score.strokes;
+                          const putts = local?.putts ?? score.putts;
+                          const diff = strokes - score.hole.par;
+                          const isSaving = savingScores.has(score.id);
+
+                          return (
+                            <tr key={score.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
+                              <td className="py-2 pr-3 font-medium">{score.hole.number}</td>
+                              <td className="text-center py-2 px-2 text-muted-foreground">{score.hole.par}</td>
+                              <td className="text-center py-2 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Stepper
+                                    value={strokes}
+                                    min={0}
+                                    onChange={(v) => handleScoreChange(score.id, v, putts)}
+                                  />
+                                  {isSaving && (
+                                    <span className="text-xs text-muted-foreground ml-1 animate-pulse">...</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="text-center py-2 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Stepper
+                                    value={putts}
+                                    min={0}
+                                    onChange={(v) => handleScoreChange(score.id, strokes, v)}
+                                  />
+                                  {isSaving && (
+                                    <span className="text-xs text-muted-foreground ml-1 animate-pulse">...</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className={`text-center py-2 pl-2 font-medium tabular-nums ${
+                                diff < 0 ? "text-green-500" : diff > 0 ? "text-red-400" : ""
+                              }`}>
+                                {diff === 0 ? "E" : diff < 0 ? `${diff}` : `+${diff}`}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-
-                  {scores.length > 0 && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b text-muted-foreground">
-                            <th className="text-left py-1 pr-3">Hole</th>
-                            <th className="text-center py-1 px-2">Par</th>
-                            <th className="text-center py-1 px-2">Strokes</th>
-                            <th className="text-center py-1 px-2">Putts</th>
-                            <th className="text-center py-1 pl-2">vs Par</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {scores.map((score) => {
-                            const local = localScores[score.id];
-                            const strokes = local?.strokes ?? score.strokes;
-                            const putts = local?.putts ?? score.putts;
-                            const diff = strokes - score.hole.par;
-                            const isSaving = savingScores.has(score.id);
-
-                            return (
-                              <tr key={score.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                                <td className="py-2 pr-3 font-medium">{score.hole.number}</td>
-                                <td className="text-center py-2 px-2 text-muted-foreground">{score.hole.par}</td>
-                                <td className="text-center py-2 px-2">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Stepper
-                                      value={strokes}
-                                      min={0}
-                                      onChange={(v) => handleScoreChange(score.id, v, putts)}
-                                    />
-                                    {isSaving && (
-                                      <span className="text-xs text-muted-foreground ml-1 animate-pulse">...</span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="text-center py-2 px-2">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Stepper
-                                      value={putts}
-                                      min={0}
-                                      onChange={(v) => handleScoreChange(score.id, strokes, v)}
-                                    />
-                                    {isSaving && (
-                                      <span className="text-xs text-muted-foreground ml-1 animate-pulse">...</span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className={`text-center py-2 pl-2 font-medium tabular-nums ${
-                                  diff < 0 ? "text-green-500" : diff > 0 ? "text-red-400" : ""
-                                }`}>
-                                  {diff === 0 ? "E" : diff < 0 ? `${diff}` : `+${diff}`}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </CardContent>
+                )}
               </Card>
             );
           })}

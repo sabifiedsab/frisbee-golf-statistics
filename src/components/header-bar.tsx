@@ -3,7 +3,7 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeMenu } from "@/components/theme-menu";
 import { UserMenu } from "@/components/user-menu";
 
 export function HeaderBar() {
@@ -19,7 +19,7 @@ export function HeaderBar() {
           <Link href="/analytics" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Analytics</Link>
         </nav>
         <div className="flex items-center gap-1">
-          <ThemeToggle />
+          <ThemeMenu />
           <UserMenu />
         </div>
       </div>

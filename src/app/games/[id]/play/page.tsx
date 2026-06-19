@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Grid3x3, House, Minus, Plus, Flag } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeMenu } from "@/components/theme-menu";
 
 interface Hole {
   id: string;
@@ -51,6 +51,7 @@ export default function PlayModePage() {
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pendingSave = useRef<Record<string, { participantId: string; holeId: string; strokes: number; putts: number }>>({});
   const touchStartX = useRef(0);
+  const [navDirection, setNavDirection] = useState<1 | -1>(1);
 
   const buildScoreMap = useCallback((participantScores: ScoreData[], holes: Hole[]) => {
     const map: Record<string, { strokes: number; putts: number; edited: boolean }> = {};
@@ -152,8 +153,10 @@ export default function PlayModePage() {
   }, [saveScore]);
 
   const goToHole = useCallback((index: number) => {
-    if (index >= 0 && index < holes.length) setHoleIndex(index);
-  }, [holes.length]);
+    if (index < 0 || index >= holes.length) return;
+    setNavDirection(index > holeIndex ? 1 : -1);
+    setHoleIndex(index);
+  }, [holes.length, holeIndex]);
 
   function vibrate(ms: number) {
     if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(ms);
@@ -301,31 +304,41 @@ export default function PlayModePage() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Header */}
+      {/* Top bar — course name owns the center */}
       <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
         <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
           <House className="h-5 w-5" />
         </Button>
-        <div className="text-center">
-          <p className="text-sm font-medium">
-            <span className="text-muted-foreground">Hole {currentHole?.number} of {holes.length}</span>
-            <span className="text-muted-foreground/50 mx-1.5">·</span>
-            <span>Par {currentHole?.par}</span>
-          </p>
-          <p className="text-lg font-bold truncate max-w-[150px]">{game.course.name}</p>
-        </div>
+        <p className="text-lg font-bold truncate max-w-[180px]">{game.course.name}</p>
         <div className="flex items-center gap-1">
-          <ThemeToggle />
+          <ThemeMenu />
           <Button variant="ghost" size="sm" onClick={() => router.push(`/games/${id}`)}>
             <Grid3x3 className="h-5 w-5" />
           </Button>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Hole title section — gives each hole its own identity */}
+      <div className="px-4 py-3 text-center shrink-0">
+        <div className="flex items-center justify-center gap-3">
+          <h2 className="text-3xl font-bold tabular-nums">
+            Hole {currentHole?.number}
+            <span className="text-muted-foreground text-xl font-medium ml-1.5">of {holes.length}</span>
+          </h2>
+          <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+            Par {currentHole?.par}
+          </span>
+        </div>
+      </div>
+
+      {/* Main content — slides directionally on hole change */}
       <div className="flex-1 flex flex-col items-center justify-center gap-4 sm:gap-6 overflow-hidden px-4">
-        {/* Nav + Controls row */}
-        <div className="flex items-center justify-center w-full max-w-md gap-2 sm:gap-4">
+        <div
+          key={holeIndex}
+          className={`flex items-center justify-center w-full max-w-md gap-2 sm:gap-4 ${
+            navDirection === 1 ? "[animation:slideInRight_200ms_ease-out]" : "[animation:slideInLeft_200ms_ease-out]"
+          }`}
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -347,13 +360,13 @@ export default function PlayModePage() {
               <button
                 onClick={removeStroke}
                 disabled={strokes <= 1}
-                className="size-16 sm:size-20 rounded-full border-2 border-border flex items-center justify-center text-3xl disabled:opacity-30 active:bg-muted transition-colors"
+                className="play-stepper size-16 sm:size-20 rounded-full border-2 border-border flex items-center justify-center text-3xl disabled:opacity-30 active:bg-muted transition-colors"
               >
                 <Minus className="h-7 w-7 sm:h-8 sm:w-8" />
               </button>
               <button
                 onClick={addStroke}
-                className="size-16 sm:size-20 rounded-full border-2 border-border flex items-center justify-center text-3xl active:bg-muted transition-colors"
+                className="play-stepper size-16 sm:size-20 rounded-full border-2 border-border flex items-center justify-center text-3xl active:bg-muted transition-colors"
               >
                 <Plus className="h-7 w-7 sm:h-8 sm:w-8" />
               </button>
@@ -363,7 +376,7 @@ export default function PlayModePage() {
               <button
                 onClick={removePutt}
                 disabled={putts <= 0}
-                className="size-9 sm:size-10 rounded-full border border-border flex items-center justify-center text-sm disabled:opacity-30 active:bg-muted transition-colors"
+                className="play-stepper size-9 sm:size-10 rounded-full border border-border flex items-center justify-center text-sm disabled:opacity-30 active:bg-muted transition-colors"
               >
                 <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
@@ -375,7 +388,7 @@ export default function PlayModePage() {
               <button
                 onClick={addPutt}
                 disabled={putts >= strokes}
-                className="size-9 sm:size-10 rounded-full border border-border flex items-center justify-center text-sm active:bg-muted transition-colors"
+                className="play-stepper size-9 sm:size-10 rounded-full border border-border flex items-center justify-center text-sm active:bg-muted transition-colors"
               >
                 <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>

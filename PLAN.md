@@ -90,6 +90,16 @@ The user wants to build a website to track statistics from their frisbee golf ga
 - [x] Backdate games: optional datetime-local input on Log Game page; passed to POST /api/games
 - [x] Edit game date: pencil icon on scorecard reveals datetime-local input; PATCH /api/games/[id] updates date (auth: participant or creator only)
 
+### 11. Phase 11: Play Mode Layout, Hole Transitions, Multi-Theme [COMPLETED]
+- [x] Play header restructure: course name owns the top bar center; hole info moved to a dedicated title section below ("Hole 3 of 18" + "Par 3" pill badge)
+- [x] Directional slide animation: content slides right when navigating forward, left when going back; slideInRight/slideInLeft keyframes (200ms ease-out) replayed via React key remount on holeIndex
+- [x] Multi-theme architecture: switched from class to data-theme attribute; 4 themes (Light, Dark, Matrix, Sunny)
+- [x] Matrix theme: neo-green on black; inherits dark component styling via the dark custom variant (no component edits needed)
+- [x] Sunny theme: sky-blue gradient background with sun-glow, warm cream cards, orange primary
+- [x] Sunny skeuomorphic buttons: gradient fills, inset highlights, drop shadows, tactile press effect on all button variants + custom play-mode round buttons
+- [x] Theme menu: replaces the old Sun/Moon toggle; dropdown with 4 themes + checkmark on active; hover-open on desktop, tap on touch; persists via next-themes localStorage (device-specific)
+- [x] Removed old theme-toggle.tsx (replaced by theme-menu.tsx)
+
 ## Current Issues
 - Analytics page still aggregates across all participants — needs per-user filtering (Phase 7)
 - Language toggle is a dummy (persists preference but no UI string translation yet — full i18n is a future phase)
@@ -102,3 +112,4 @@ The user wants to build a website to track statistics from their frisbee golf ga
 - [x] **Live scoring: Totals, progress dots, and participant switching update in real time as strokes/putts are entered**
 - [x] **Admin: Non-admins can't create/edit courses; admin bootstrap via ADMIN_USERNAME env var works on login**
 - [x] **Play polish: Color coding, animation, haptics all respond to par diff and score changes**
+- [x] **Multi-theme: 4 themes render correctly; matrix is neo-green on black; sunny has gradient bg + skeuomorphic buttons**

@@ -33,6 +33,9 @@ yarn-error.log*
 .env.local
 .env.production
 
+# docker compose (keep compose.example.yml tracked; hold real secrets locally)
+compose.yml
+
 # vercel
 .vercel
 

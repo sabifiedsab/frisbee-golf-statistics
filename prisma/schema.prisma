@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,8 +10,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String         @id @default(cuid())
+  username     String         @unique
+  password     String
+  createdGames Game[]        // Games where this user is the creator/owner
+  participated Participant[] // Games where this user is a player
+}
+
 model Course {
-  id       String @id @default(cuid())
+  id       String   @id @default(cuid())
   name     String
   location String
   holes    Hole[]
@@ -21,28 +27,42 @@ model Course {
 }
 
 model Hole {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   number   Int
   par      Int
   courseId String
-  course   Course @relation(fields: [courseId], references: [id])
+  course   Course  @relation(fields: [courseId], references: [id])
   scores   Score[]
 }
 
 model Game {
-  id       String   @id @default(cuid())
-  date     DateTime @default(now())
-  courseId String
-  course   Course   @relation(fields: [courseId], references: [id])
-  scores   Score[]
+  id           String         @id @default(cuid())
+  date         DateTime       @default(now())
+  courseId     String
+  course       Course         @relation(fields: [courseId], references: [id])
+  userId       String?        // The creator of the game
+  user         User?          @relation(fields: [userId], references: [id])
+  participants Participant[] // The people playing in this game
+}
+
+model Participant {
+  id     String @id @default(cuid())
+  gameId String
+  game   Game   @relation(fields: [gameId], references: [id])
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+  name   String // The display name (guest name or user's username)
+  scores Score[]
 }
 
 model Score {
-  id        String @id @default(cuid())
-  gameId    String
-  game      Game @relation(fields: [gameId], references: [id])
-  holeId    String
-  hole      Hole @relation(fields: [holeId], references: [id])
-  strokes   Int
-  putts     Int
+  id            String      @id @default(cuid())
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id])
+  holeId        String
+  hole          Hole       @relation(fields: [holeId], references: [id])
+  strokes       Int
+  putts         Int
+
+  @@unique([participantId, holeId])
 }

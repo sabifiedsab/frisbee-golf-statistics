@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import Link from "next/link";
-import { PlusCircle, Trophy, LayoutDashboard, Trash2 } from "lucide-react";
+import { PlusCircle, Trophy, LayoutDashboard, Trash2, LogIn, UserPlus } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface GameSummary {
@@ -18,24 +19,32 @@ interface GameSummary {
 }
 
 export default function HomePage() {
+  const { data: session, status } = useSession();
   const [games, setGames] = useState<GameSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const isLoading = status === "loading" || isFetching;
 
   useEffect(() => {
-    fetchGames();
-  }, []);
+    if (status === "authenticated") {
+      fetchGames();
+    }
+  }, [status]);
 
   async function fetchGames() {
+    setIsFetching(true);
     try {
       const res = await fetch("/api/games");
+      if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
-      setGames(data);
+      if (Array.isArray(data)) {
+        setGames(data);
+      }
     } catch {
       toast.error("Failed to load games");
     } finally {
-      setIsLoading(false);
+      setIsFetching(false);
     }
   }
 
@@ -66,7 +75,6 @@ export default function HomePage() {
       if (!res.ok) throw new Error("Failed to delete games");
       toast.success(`${selectedIds.size} game(s) deleted`);
       setSelectedIds(new Set());
-      setIsLoading(true);
       await fetchGames();
     } catch {
       toast.error("Failed to delete games");
@@ -75,12 +83,39 @@ export default function HomePage() {
     }
   }
 
+  if (status === "loading") {
+    return <div className="container mx-auto py-10 text-center">Loading...</div>;
+  }
+
+  if (status !== "authenticated") {
+    return (
+      <div className="container mx-auto py-20 px-4 max-w-lg text-center">
+        <h1 className="text-4xl font-bold tracking-tight mb-4">Frisbee Golf Stats</h1>
+        <p className="text-muted-foreground mb-8 text-lg">
+          Track your rounds, analyze your game, and improve with every putt.
+        </p>
+        <div className="flex flex-col gap-3 max-w-xs mx-auto">
+          <Link href="/login">
+            <Button className="w-full" size="lg">
+              <LogIn className="mr-2 h-5 w-5" /> Login
+            </Button>
+          </Link>
+          <Link href="/register">
+            <Button variant="outline" className="w-full" size="lg">
+              <UserPlus className="mr-2 h-5 w-5" /> Create Account
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-10 px-4 max-w-4xl">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">Frisbee Golf Stats</h1>
-          <p className="text-muted-foreground">Track your progress and improve your game.</p>
+          <h1 className="text-4xl font-bold tracking-tight">Your Games</h1>
+          <p className="text-muted-foreground">Welcome back, {session.user?.name}.</p>
         </div>
         <div className="flex gap-2">
           <Link href="/courses/add">

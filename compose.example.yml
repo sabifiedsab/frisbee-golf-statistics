@@ -1,0 +1,20 @@
+# Example Docker Compose configuration.
+# Copy this file to `compose.yml` and fill in real values before deploying:
+#   cp compose.example.yml compose.yml
+#
+# Generate an AUTH_SECRET with:
+#   openssl rand -base64 32
+services:
+  app:
+    build: .
+    ports:
+      - "11455:3000"
+    volumes:
+      - frisbee-golf-data:/app/data
+    environment:
+      - DATABASE_URL=file:/app/data/frisbee-golf.db
+      - AUTH_SECRET=changeme-generate-with-openssl-rand-base64-32
+    restart: unless-stopped
+
+volumes:
+  frisbee-golf-data:

@@ -15,7 +15,11 @@ export async function GET(
             holes: true,
           },
         },
-        scores: true,
+        participants: {
+          include: {
+            scores: true,
+          },
+        },
       },
     });
 
@@ -37,7 +41,14 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    await prisma.score.deleteMany({ where: { gameId: id } });
+    await prisma.score.deleteMany({
+      where: {
+        participant: {
+          gameId: id,
+        },
+      },
+    });
+    await prisma.participant.deleteMany({ where: { gameId: id } });
     await prisma.game.delete({ where: { id } });
 
     return NextResponse.json({ deleted: true });

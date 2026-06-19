@@ -2,7 +2,17 @@
 
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
-import { useFormContext, FormProvider, Controller, type UseFormReturn, type FieldValues, type FieldError } from "react-hook-form"
+import {
+  useFormContext,
+  FormProvider,
+  Controller,
+  type UseFormReturn,
+  type FieldError,
+  type FieldValues,
+  type FieldPath,
+  type ControllerRenderProps,
+  type RegisterOptions,
+} from "react-hook-form"
 import { cn } from "@/lib/utils"
 
 const FormFieldContext = React.createContext<string>("")
@@ -18,24 +28,24 @@ export function Form<TFieldValues extends FieldValues = FieldValues>({
   )
 }
 
-export function FormField({
+export function FormField<TFieldValues extends FieldValues = FieldValues>({
   name,
   render,
   rules,
   defaultValue,
   shouldUnregister,
 }: {
-  name: any
-  render: (props: { field: any }) => React.ReactElement
-  rules?: any
-  defaultValue?: any
+  name: FieldPath<TFieldValues>
+  render: (props: { field: ControllerRenderProps<TFieldValues, FieldPath<TFieldValues>> }) => React.ReactElement
+  rules?: RegisterOptions<TFieldValues, FieldPath<TFieldValues>>
+  defaultValue?: TFieldValues[FieldPath<TFieldValues>]
   shouldUnregister?: boolean
 }) {
   return (
     <FormFieldContext.Provider value={name}>
       <Controller
         name={name}
-        control={useFormContext().control}
+        control={useFormContext<TFieldValues>().control}
         rules={rules}
         defaultValue={defaultValue}
         shouldUnregister={shouldUnregister}
@@ -45,8 +55,13 @@ export function FormField({
   )
 }
 
-function get(obj: any, path: string): any {
-  return path.split(".").reduce((acc, key) => (acc ? acc[key] : undefined), obj)
+function get(obj: Record<string, unknown> | undefined, path: string): unknown {
+  return path.split(".").reduce<unknown>((acc, key) => {
+    if (acc && typeof acc === "object") {
+      return (acc as Record<string, unknown>)[key]
+    }
+    return undefined
+  }, obj)
 }
 
 export function FormItem({
@@ -84,8 +99,6 @@ export function FormControl({
   ref,
   ...props
 }: React.ComponentPropsWithoutRef<"input"> & {
-  onChange?: (value: any) => void
-  onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void
   ref?: React.Ref<HTMLInputElement>
 }) {
   return (
@@ -111,7 +124,7 @@ export function FormMessage({
 }: React.HTMLAttributes<HTMLDivElement>) {
   const fieldName = React.useContext(FormFieldContext)
   const { formState: { errors } } = useFormContext()
-  const error: FieldError | undefined = get(errors, fieldName)
+  const error = get(errors as unknown as Record<string, unknown>, fieldName) as FieldError | undefined
   return (
     <span
       className={cn(

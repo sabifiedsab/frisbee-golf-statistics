@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface Hole {
@@ -33,7 +33,7 @@ export default function CourseDetailsPage() {
         if (!res.ok) throw new Error("Failed to fetch course");
         const data = await res.json();
         setCourse(data);
-      } catch (error) {
+      } catch {
         toast.error("Failed to load course");
       } finally {
         setIsLoading(false);

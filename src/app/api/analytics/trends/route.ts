@@ -3,12 +3,16 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    // Fetch all games with their scores and hole par information
+    // Fetch all games with their participants, scores and hole par information
     const games = await prisma.game.findMany({
       include: {
-        scores: {
+        participants: {
           include: {
-            hole: true,
+            scores: {
+              include: {
+                hole: true,
+              },
+            },
           },
         },
         course: true,
@@ -19,7 +23,8 @@ export async function GET() {
     });
 
   const trends = games.map((game) => {
-    const validScores = game.scores.filter((s) => s.strokes > 0);
+    const allScores = game.participants.flatMap((p) => p.scores);
+    const validScores = allScores.filter((s) => s.strokes > 0);
     const totalStrokes = validScores.reduce((sum, s) => sum + s.strokes, 0);
     const totalPutts = validScores.reduce((sum, s) => sum + s.putts, 0);
     const numHoles = validScores.length;

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoreTrendChart } from "@/components/analytics/ScoreTrendChart";
 import { toast } from "sonner";
-import { TrendingUp, BarChart3, Calendar } from "lucide-react";
+import { TrendingUp, Calendar } from "lucide-react";
 
 interface TrendData {
   date: Date;
@@ -44,7 +44,7 @@ export default function AnalyticsPage() {
          }));
 
         setTrends(formattedData);
-      } catch (error) {
+      } catch {
         toast.error("Failed to load analytics");
       } finally {
         setIsLoading(false);

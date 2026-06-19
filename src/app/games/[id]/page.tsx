@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { ChevronLeft, Trash2, Play } from "lucide-react";
+import { ChevronLeft, Trash2, Play, User } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Stepper } from "@/components/stepper";
 
@@ -23,6 +23,13 @@ interface ScoreData {
   putts: number;
 }
 
+interface Participant {
+  id: string;
+  name: string;
+  userId?: string;
+  scores: ScoreData[];
+}
+
 interface Game {
   id: string;
   date: string;
@@ -30,24 +37,32 @@ interface Game {
     name: string;
     holes: Hole[];
   };
-  scores: ScoreData[];
+  participants: Participant[];
 }
 
 export default function ScorecardPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const [game, setGame] = useState<Game | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const scoreIdMap = useRef<Record<string, string>>({});
-  const savingHoles = useRef<Set<string>>(new Set());
+  const [participantIndex, setParticipantIndex] = useState(0);
+  const [scores, setScores] = useState<Record<string, { strokes: number; putts: number }>>({});
+  const scoresByParticipant = useRef<Record<string, Record<string, { strokes: number; putts: number }>>>({});
 
-  const form = useForm({
-    defaultValues: {
-      scores: {} as Record<string, { strokes: number; putts: number }>,
-    },
-  });
+  function buildScoreMap(participantScores: ScoreData[], holes: Hole[]) {
+    const map: Record<string, { strokes: number; putts: number }> = {};
+    holes.forEach((hole) => {
+      const existing = participantScores.find((s) => s.holeId === hole.id);
+      map[hole.id] = {
+        strokes: existing?.strokes ?? 0,
+        putts: existing?.putts ?? 0,
+      };
+    });
+    return map;
+  }
 
   useEffect(() => {
     async function fetchGame() {
@@ -56,18 +71,20 @@ export default function ScorecardPage() {
         if (!res.ok) throw new Error("Failed to fetch game");
         const data: Game = await res.json();
         setGame(data);
-        data.scores.forEach((s) => {
-          scoreIdMap.current[s.holeId] = s.id;
-        });
-        const initialScores: Record<string, { strokes: number; putts: number }> = {};
-        data.course.holes.forEach((hole) => {
-          const existing = data.scores.find((s) => s.holeId === hole.id);
-          initialScores[hole.id] = {
-            strokes: existing?.strokes ?? 0,
-            putts: existing?.putts ?? 0,
-          };
-        });
-        form.reset({ scores: initialScores });
+        if (data.participants && data.participants.length > 0) {
+          const holes = data.course.holes;
+          const byParticipant: Record<string, Record<string, { strokes: number; putts: number }>> = {};
+          data.participants.forEach((p: Participant) => {
+            byParticipant[p.id] = buildScoreMap(p.scores || [], holes);
+          });
+          scoresByParticipant.current = byParticipant;
+
+          const currentUserId = session?.user?.id;
+          const myIndex = data.participants.findIndex(p => p.userId === currentUserId);
+          const targetIndex = myIndex >= 0 ? myIndex : 0;
+          setParticipantIndex(targetIndex);
+          setScores(byParticipant[data.participants[targetIndex].id] || {});
+        }
       } catch {
         toast.error("Failed to load game");
       } finally {
@@ -75,9 +92,13 @@ export default function ScorecardPage() {
       }
     }
     if (id) fetchGame();
-  }, [id, form]);
+  }, [id, session]);
 
-  const scores = form.watch("scores");
+  function switchParticipant(index: number) {
+    if (!game?.participants[index]) return;
+    setScores(scoresByParticipant.current[game.participants[index].id] || {});
+    setParticipantIndex(index);
+  }
 
   function computeTotals() {
     if (!game) return { totalStrokes: 0, totalPutts: 0, totalPar: 0, overUnder: 0 };
@@ -95,31 +116,19 @@ export default function ScorecardPage() {
   }
 
   const totals = computeTotals();
+  const currentParticipant = game?.participants[participantIndex];
 
   async function saveScore(holeId: string, strokesVal: number, puttsVal: number) {
-    if (savingHoles.current.has(holeId)) return;
-    savingHoles.current.add(holeId);
+    if (!currentParticipant) return;
     try {
-      const existingId = scoreIdMap.current[holeId];
-      const url = existingId ? `/api/scores/${existingId}` : "/api/scores";
-      const method = existingId ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
+      const res = await fetch("/api/scores", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameId: id, holeId, strokes: strokesVal, putts: puttsVal }),
+        body: JSON.stringify({ participantId: currentParticipant.id, holeId, strokes: strokesVal, putts: puttsVal }),
       });
-
       if (!res.ok) throw new Error("Save failed");
-
-      if (!existingId) {
-        const created: { id: string } = await res.json();
-        scoreIdMap.current[holeId] = created.id;
-      }
     } catch {
       toast.error("Failed to save score");
-    } finally {
-      savingHoles.current.delete(holeId);
     }
   }
 
@@ -127,16 +136,32 @@ export default function ScorecardPage() {
     const safe = Math.max(1, value);
     const currentPutts = scores[holeId]?.putts ?? 0;
     const newPutts = Math.min(currentPutts, safe);
-    form.setValue(`scores.${holeId}.strokes` as any, safe);
-    form.setValue(`scores.${holeId}.putts` as any, newPutts);
+    const pid = currentParticipant?.id;
+    if (pid) {
+      scoresByParticipant.current[pid] = {
+        ...scoresByParticipant.current[pid],
+        [holeId]: { strokes: safe, putts: newPutts },
+      };
+    }
+    setScores(prev => ({ ...prev, [holeId]: { strokes: safe, putts: newPutts } }));
     saveScore(holeId, safe, newPutts);
   }
 
   function handlePuttsChange(holeId: string, value: number) {
     const maxStrokes = scores[holeId]?.strokes ?? 1;
     const safe = Math.max(0, Math.min(value, maxStrokes));
-    form.setValue(`scores.${holeId}.putts` as any, safe);
-    saveScore(holeId, scores[holeId]?.strokes ?? 1, safe);
+    const pid = currentParticipant?.id;
+    if (pid) {
+      scoresByParticipant.current[pid] = {
+        ...scoresByParticipant.current[pid],
+        [holeId]: { strokes: maxStrokes, putts: safe },
+      };
+    }
+    setScores(prev => ({
+      ...prev,
+      [holeId]: { strokes: maxStrokes, putts: safe },
+    }));
+    saveScore(holeId, maxStrokes, safe);
   }
 
   async function handleDelete() {
@@ -175,6 +200,28 @@ export default function ScorecardPage() {
         </Button>
       </div>
 
+      {/* Participant switcher */}
+      {game.participants.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {game.participants.map((p, i) => (
+            <Button
+              key={p.id}
+              variant={participantIndex === i ? "default" : "outline"}
+              size="sm"
+              onClick={() => switchParticipant(i)}
+            >
+              <User className="mr-1 h-3 w-3" /> {p.name}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {currentParticipant && (
+        <p className="text-sm text-muted-foreground mb-2">
+          Scores for: <span className="font-semibold">{currentParticipant.name}</span>
+        </p>
+      )}
+
       <Card className="mb-6">
         <CardContent className="p-4 flex items-center justify-around text-center">
           <div>
@@ -202,10 +249,10 @@ export default function ScorecardPage() {
         <div className="text-center">Hole</div>
         <div className="text-center">Par</div>
         <div className="text-center">Strokes</div>
-          <div className="text-center">
-            Putts<br />
-            <span className="text-[10px] font-normal">in strokes</span>
-          </div>
+        <div className="text-center">
+          Putts<br />
+          <span className="text-[10px] font-normal">in strokes</span>
+        </div>
       </div>
 
       <div className="space-y-3">
